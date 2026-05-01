@@ -71,7 +71,6 @@ Explore::Explore()
   this->declare_parameter<float>("goal_aliasing_distance", 0.5);
   this->declare_parameter<float>("orientation_scale", 0.0);
   this->declare_parameter<float>("gain_scale", 1.0);
-  this->declare_parameter<float>("goal_aliasing_distance", 0.25);
   this->declare_parameter<float>("min_frontier_size", 0.5);
   this->declare_parameter<bool>("return_to_init", false);
 
