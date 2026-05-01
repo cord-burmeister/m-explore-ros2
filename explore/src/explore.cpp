@@ -41,13 +41,15 @@
 #include <thread>
 
 inline static bool same_point(const geometry_msgs::msg::Point& one,
-                              const geometry_msgs::msg::Point& two)
+                              const geometry_msgs::msg::Point& two,
+                              double tolerance)
 {
   double dx = one.x - two.x;
   double dy = one.y - two.y;
   double dist = sqrt(dx * dx + dy * dy);
-  return dist < 0.01;
+  return dist < tolerance;
 }
+
 
 namespace explore
 {
@@ -66,8 +68,10 @@ Explore::Explore()
   this->declare_parameter<float>("progress_timeout", 30.0);
   this->declare_parameter<bool>("visualize", false);
   this->declare_parameter<float>("potential_scale", 1e-3);
+  this->declare_parameter<float>("goal_aliasing_distance", 0.5);
   this->declare_parameter<float>("orientation_scale", 0.0);
   this->declare_parameter<float>("gain_scale", 1.0);
+  this->declare_parameter<float>("goal_aliasing_distance", 0.25);
   this->declare_parameter<float>("min_frontier_size", 0.5);
   this->declare_parameter<bool>("return_to_init", false);
 
@@ -77,6 +81,7 @@ Explore::Explore()
   this->get_parameter("potential_scale", potential_scale_);
   this->get_parameter("orientation_scale", orientation_scale_);
   this->get_parameter("gain_scale", gain_scale_);
+  this->get_parameter("goal_aliasing_distance", goal_aliasing_distance_);
   this->get_parameter("min_frontier_size", min_frontier_size);
   this->get_parameter("return_to_init", return_to_init_);
   this->get_parameter("robot_base_frame", robot_base_frame_);
@@ -204,7 +209,12 @@ void Explore::visualizeFrontiers(
     m.id = int(id);
     m.pose.position = frontier.centroid;
     // scale frontier according to its cost (costier frontiers will be smaller)
-    double scale = std::min(std::abs(min_cost * 0.4 / frontier.cost), 0.5);
+    constexpr double min_marker_scale = 0.05;
+    double scale = 0.5;
+    if (std::abs(frontier.cost) > 1e-9 && std::abs(min_cost) > 1e-9) {
+      scale = std::min(std::abs(min_cost * 0.4 / frontier.cost), 0.5);
+    }
+    scale = std::max(scale, min_marker_scale);
     m.scale.x = scale;
     m.scale.y = scale;
     m.scale.z = scale;
@@ -268,8 +278,8 @@ void Explore::makePlan()
   geometry_msgs::msg::Point target_position = frontier->centroid;
 
   // time out if we are not making any progress
-  bool same_goal = same_point(prev_goal_, target_position);
-
+  bool same_goal = same_point(prev_goal_, target_position,
+                              goal_aliasing_distance_);
   prev_goal_ = target_position;
   if (!same_goal || prev_distance_ > frontier->min_distance) {
     // we have different goal or we made some progress

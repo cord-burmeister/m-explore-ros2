@@ -139,6 +139,7 @@ private:
   // parameters
   double planner_frequency_;
   double potential_scale_, orientation_scale_, gain_scale_;
+  double goal_aliasing_distance_;
   double progress_timeout_;
   bool visualize_;
   bool return_to_init_;
