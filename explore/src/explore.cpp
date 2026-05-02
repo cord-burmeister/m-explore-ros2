@@ -112,6 +112,11 @@ Explore::Explore()
       "explore/resume", 10,
       std::bind(&Explore::resumeCallback, this, std::placeholders::_1));
 
+  // Subscription to reset the frontier blacklist
+  reset_subscription_ = this->create_subscription<std_msgs::msg::Bool>(
+      "explore/reset", 10,
+      std::bind(&Explore::resetCallback, this, std::placeholders::_1));
+
   RCLCPP_INFO(logger_, "Waiting to connect to move_base nav2 server");
   move_base_client_->wait_for_action_server();
   RCLCPP_INFO(logger_, "Connected to move_base nav2 server");
@@ -154,6 +159,14 @@ void Explore::resumeCallback(const std_msgs::msg::Bool::SharedPtr msg)
     resume();
   } else {
     stop();
+  }
+}
+
+void Explore::resetCallback(const std_msgs::msg::Bool::SharedPtr msg)
+{
+  if (msg->data) {
+    RCLCPP_INFO(logger_, "Resetting frontier blacklist.");
+    frontier_blacklist_.clear();
   }
 }
 

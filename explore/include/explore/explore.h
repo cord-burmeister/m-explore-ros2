@@ -127,6 +127,9 @@ private:
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr resume_subscription_;
   void resumeCallback(const std_msgs::msg::Bool::SharedPtr msg);
 
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr reset_subscription_;
+  void resetCallback(const std_msgs::msg::Bool::SharedPtr msg);
+
   std::vector<geometry_msgs::msg::Point> frontier_blacklist_;
   geometry_msgs::msg::Point prev_goal_;
   double prev_distance_;
