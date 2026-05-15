@@ -85,6 +85,9 @@ Explore::Explore()
   this->get_parameter("return_to_init", return_to_init_);
   this->get_parameter("robot_base_frame", robot_base_frame_);
 
+  // Keep progress tracking on the node clock to avoid mixed clock-source arithmetic.
+  last_progress_ = this->now();
+
   progress_timeout_ = timeout;
   move_base_client_ =
       rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(
@@ -250,6 +253,11 @@ void Explore::visualizeFrontiers(
 
 void Explore::makePlan()
 {
+  auto now = this->now();
+  if (last_progress_.get_clock_type() != now.get_clock_type()) {
+    last_progress_ = now;
+  }
+
   // find frontiers
   auto pose = costmap_client_.getRobotPose();
   // get frontiers sorted according to cost
@@ -295,11 +303,11 @@ void Explore::makePlan()
   prev_goal_ = target_position;
   if (!same_goal || prev_distance_ > frontier->min_distance) {
     // we have different goal or we made some progress
-    last_progress_ = this->now();
+    last_progress_ = now;
     prev_distance_ = frontier->min_distance;
   }
   // black list if we've made no progress for a long time
-  if ((this->now() - last_progress_ >
+  if ((now - last_progress_ >
       tf2::durationFromSec(progress_timeout_)) && !resuming_) {
     frontier_blacklist_.push_back(target_position);
     RCLCPP_DEBUG(logger_, "Adding current goal to black list");
@@ -324,7 +332,9 @@ void Explore::makePlan()
   goal.pose.pose.position = target_position;
   goal.pose.pose.orientation.w = 1.;
   goal.pose.header.frame_id = costmap_client_.getGlobalFrameID();
-  goal.pose.header.stamp = this->now();
+  // Use latest available TF for goal transforms to avoid mixed-clock timestamp issues.
+  goal.pose.header.stamp.sec = 0;
+  goal.pose.header.stamp.nanosec = 0;
 
   auto send_goal_options =
       rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SendGoalOptions();
@@ -351,7 +361,9 @@ void Explore::returnToInitialPose()
   goal.pose.pose.position = initial_pose_.position;
   goal.pose.pose.orientation = initial_pose_.orientation;
   goal.pose.header.frame_id = costmap_client_.getGlobalFrameID();
-  goal.pose.header.stamp = this->now();
+  // Use latest available TF for goal transforms to avoid mixed-clock timestamp issues.
+  goal.pose.header.stamp.sec = 0;
+  goal.pose.header.stamp.nanosec = 0;
 
   auto send_goal_options =
       rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SendGoalOptions();
